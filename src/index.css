@@ -66,6 +66,10 @@ body {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+
+  @media (max-width: 639px) {
+    border-inline: none;
+  }
 }
 
 h1,

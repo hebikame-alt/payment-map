@@ -550,18 +550,18 @@ export default function PaymentMapPrototype() {
   if (loading) {
     return (
       <div
-        className="min-h-screen w-full flex items-center justify-center p-4 sm:p-8"
+        className="min-h-screen w-full flex items-center justify-center p-0 sm:p-8"
         style={{
           background: `radial-gradient(circle at 30% 20%, ${COLORS.inkSoft}, ${COLORS.ink})`,
           fontFamily: FONT.display,
         }}
       >
         <div
-          className="relative flex w-full max-w-sm flex-col items-center justify-center gap-3 overflow-hidden rounded-[2.25rem] shadow-2xl"
+          className="relative flex h-[100dvh] w-full flex-col items-center justify-center gap-3 overflow-hidden border-0 sm:h-[min(860px,92vh)] sm:max-w-sm sm:rounded-[2.25rem] sm:border-[6px] sm:shadow-2xl"
           style={{
-            height: "min(860px, 92vh)",
             background: COLORS.mist,
-            border: `6px solid ${COLORS.ink}`,
+            borderStyle: "solid",
+            borderColor: COLORS.ink,
           }}
         >
           <div
@@ -578,31 +578,31 @@ export default function PaymentMapPrototype() {
 
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center p-4 sm:p-8"
+      className="min-h-screen w-full flex items-center justify-center p-0 sm:p-8"
       style={{
         background: `radial-gradient(circle at 30% 20%, ${COLORS.inkSoft}, ${COLORS.ink})`,
         fontFamily: FONT.display,
       }}
     >
-      {/* Phone frame */}
+      {/* Phone frame (wide screens only; full-screen below sm) */}
       <div
-        className="relative w-full max-w-sm overflow-hidden rounded-[2.25rem] shadow-2xl"
+        className="relative h-[100dvh] w-full overflow-hidden border-0 sm:h-[min(860px,92vh)] sm:max-w-sm sm:rounded-[2.25rem] sm:border-[6px] sm:shadow-2xl"
         style={{
-          height: "min(860px, 92vh)",
           background: COLORS.mist,
-          border: `6px solid ${COLORS.ink}`,
+          borderStyle: "solid",
+          borderColor: COLORS.ink,
         }}
       >
         {/* Status notch */}
         <div
-          className="absolute left-1/2 top-2 z-40 h-5 w-28 -translate-x-1/2 rounded-full"
+          className="absolute left-1/2 top-2 z-40 hidden h-5 w-28 -translate-x-1/2 rounded-full sm:block"
           style={{ background: COLORS.ink }}
         />
 
         <div className="flex h-full w-full flex-col">
           {/* Top bar */}
           <div
-            className="flex flex-col gap-2.5 px-4 pb-3 pt-8"
+            className="flex flex-col gap-2.5 px-4 pb-3 pt-4 sm:pt-8"
             style={{ background: COLORS.ink }}
           >
             <div className="flex items-center gap-2">
