@@ -25,6 +25,7 @@ import {
   Scissors,
   Fuel,
   MoreHorizontal,
+  Info,
 } from "lucide-react";
 
 import supabase from "./lib/supabaseClient";
@@ -68,6 +69,9 @@ const PAYMENT_CATEGORY_META = {
   transit: { label: "交通系", icon: TrainFront },
 };
 const PAYMENT_CATEGORY_ORDER = ["code", "credit", "cash", "transit"];
+
+// localStorage flag: once the user closes the map disclaimer it stays hidden.
+const DISCLAIMER_DISMISSED_KEY = "payment-map:disclaimer-dismissed";
 
 const STORE_CATEGORIES = [
   { id: "すべて", icon: ShoppingBag },
@@ -130,6 +134,13 @@ function storeCoord(id, axis) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+// "2026-08-20" -> "8/20"; the year is kept only when it isn't the current one.
+function formatConfirmedDate(dateStr) {
+  const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return dateStr;
+  return y === new Date().getFullYear() ? `${m}/${d}` : `${y}/${m}/${d}`;
 }
 
 // Nudges pins that landed too close together (which makes their name labels
@@ -265,6 +276,13 @@ export default function PaymentMapPrototype() {
   const [reqTempRegion, setReqTempRegion] = useState("");
   const [reqTempExpiry, setReqTempExpiry] = useState("");
   const [reqManageStoreId, setReqManageStoreId] = useState(null);
+  const [disclaimerVisible, setDisclaimerVisible] = useState(() => {
+    try {
+      return localStorage.getItem(DISCLAIMER_DISMISSED_KEY) !== "1";
+    } catch {
+      return true;
+    }
+  });
 
   const [stores, setStores] = useState([]);
   const [payments, setPayments] = useState([]);
@@ -308,18 +326,13 @@ export default function PaymentMapPrototype() {
       }
 
       const paymentIdsByStore = {};
-      const lastConfirmedByStore = {};
+      const lastConfirmedByStore = {}; // store_id -> { payment_id -> last_confirmed }
       (storePaymentsData || []).forEach((row) => {
         if (!paymentIdsByStore[row.store_id]) paymentIdsByStore[row.store_id] = [];
         paymentIdsByStore[row.store_id].push(row.payment_id);
 
-        if (
-          row.last_confirmed &&
-          (!lastConfirmedByStore[row.store_id] ||
-            row.last_confirmed > lastConfirmedByStore[row.store_id])
-        ) {
-          lastConfirmedByStore[row.store_id] = row.last_confirmed;
-        }
+        if (!lastConfirmedByStore[row.store_id]) lastConfirmedByStore[row.store_id] = {};
+        lastConfirmedByStore[row.store_id][row.payment_id] = row.last_confirmed || null;
       });
 
       const mergedStores = (storesData || []).map((s) => ({
@@ -328,7 +341,7 @@ export default function PaymentMapPrototype() {
         category: s.category,
         x: storeCoord(s.id, "x"),
         y: storeCoord(s.id, "y"),
-        lastConfirmed: lastConfirmedByStore[s.id] || null,
+        lastConfirmed: lastConfirmedByStore[s.id] || {},
         payments: paymentIdsByStore[s.id] || [],
       }));
 
@@ -407,6 +420,15 @@ export default function PaymentMapPrototype() {
       items: cat.items.filter((i) => i.name.includes(q)),
     })).filter((cat) => cat.items.length > 0);
   }, [paymentCategories, paymentSearch]);
+
+  const dismissDisclaimer = () => {
+    setDisclaimerVisible(false);
+    try {
+      localStorage.setItem(DISCLAIMER_DISMISSED_KEY, "1");
+    } catch {
+      // storage unavailable (e.g. private mode): stays hidden for this session only
+    }
+  };
 
   const openRegister = () => {
     setPending(registered);
@@ -644,6 +666,25 @@ export default function PaymentMapPrototype() {
                 <Plus size={17} color={COLORS.cream} />
               </button>
             </div>
+
+            {disclaimerVisible && (
+              <div
+                className="flex items-start gap-1.5 rounded-lg py-1.5 pl-2.5 pr-1.5 text-[10px] leading-snug"
+                style={{ background: "rgba(255,255,255,0.06)", color: "#AEBBBE" }}
+              >
+                <Info size={12} className="mt-px shrink-0" />
+                <p className="flex-1">
+                  この情報はユーザーからの報告を基にしており、正確さを保証するものではありません
+                </p>
+                <button
+                  onClick={dismissDisclaimer}
+                  aria-label="注意書きを閉じる"
+                  className="-my-0.5 shrink-0 rounded-full p-0.5"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Map canvas */}
@@ -1273,29 +1314,30 @@ export default function PaymentMapPrototype() {
               <p className="mb-2 mt-3 text-xs font-bold" style={{ color: COLORS.slate }}>
                 使える決済
               </p>
-              <div className="mb-4 flex flex-wrap gap-2">
+              <div className="mb-4 flex flex-wrap gap-x-2 gap-y-2.5">
                 {selectedStore.payments.map((p) => {
                   const owned = registered.includes(p);
+                  const confirmed = selectedStore.lastConfirmed[p];
                   return (
-                    <span
-                      key={p}
-                      className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium"
-                      style={{
-                        background: owned ? COLORS.tealMist : COLORS.cream,
-                        color: owned ? COLORS.tealDeep : COLORS.inkSoft,
-                        border: `1px solid ${owned ? COLORS.teal : COLORS.line}`,
-                      }}
-                    >
-                      {owned && <Check size={12} strokeWidth={3} />}
-                      {paymentName[p]}
-                    </span>
+                    <div key={p} className="flex flex-col items-center gap-0.5">
+                      <span
+                        className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium"
+                        style={{
+                          background: owned ? COLORS.tealMist : COLORS.cream,
+                          color: owned ? COLORS.tealDeep : COLORS.inkSoft,
+                          border: `1px solid ${owned ? COLORS.teal : COLORS.line}`,
+                        }}
+                      >
+                        {owned && <Check size={12} strokeWidth={3} />}
+                        {paymentName[p]}
+                      </span>
+                      <span className="text-[10px] leading-none" style={{ color: COLORS.slate }}>
+                        {confirmed ? `${formatConfirmedDate(confirmed)}確認` : "未確認"}
+                      </span>
+                    </div>
                   );
                 })}
               </div>
-
-              <p className="mb-4 text-xs" style={{ color: COLORS.slate }}>
-                最終確認：{selectedStore.lastConfirmed || "未確認"}
-              </p>
 
               {storeTempUses(selectedStore.id).length > 0 && (
                 <div className="mb-4">
